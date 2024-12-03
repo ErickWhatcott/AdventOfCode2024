@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "qb9KHuqfAio=",
+  "success": true,
+  "projectFilePath": "/Users/erickwhatcott/Documents/Programming/cs/AdventOfCode2024/AdventOfCode2024/AdventOfCode2024.csproj",
+  "expectedPackageFiles": [
+    "/Users/erickwhatcott/.nuget/packages/microsoft.z3/4.12.2/microsoft.z3.4.12.2.nupkg.sha512"
+  ],
+  "logs": []
+}
