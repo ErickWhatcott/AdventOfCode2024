@@ -16,27 +16,24 @@ public static class Days {
             .PrintLine(); // Print the result
 
         // P2:
-        var output = File.ReadLines(filename)
+        File.ReadLines(filename)
             .Select(a => a.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)) // Split rows into 2 values
             .SelectMany<string[], (int index, int value)>(a => [(0, int.Parse(a[0])), (1, int.Parse(a[1]))]) // Parse the values and put into tuples
-            .GroupBy(a => a.index, a => a.value); // // Group into columns
-
-        // Create a dictionary mapping the element to the number of times that the element was present in the 2nd column
-        var dictionary = output.ElementAt(1) // get the 2nd column
-            .GroupBy(a => a) // group the elemnts together
-            .Select(a => new { Key = a.Key, Count = a.Count() }) // Count the number of times each element is in the column
-            .ToDictionary(entry => entry.Key, entry => entry.Count); // Map the element to the count of it
-
-        output.ElementAt(0) // get the 1st column
-            .Sum(a => a * dictionary.GetValueOrDefault(a)) // Get the element * the number of times that is was present in the 2nd column
-            .PrintLine(); // print the result
+            .GroupBy(a => a.index, a => a.value) // Group into columns
+            .Select((a, i) => // Breaks it into groups of equal value within the same column
+                a.GroupBy(b => b) // Group by value
+                .Select(b => new { Index = i, Key = b.Key, Count = b.Count() }) // Select the index of the column, the value, and the count
+            ).SelectMany(a => a) // Bring all the condensed groups into one large enumerable
+            .GroupBy(a => a.Key) // Group by the value
+            .Where(a => a.Count() == 2 && a.All(b => b.Count > 0)) // Elimate any where there is not multiple values in each
+            .Select(a => a.ToDictionary(entry => entry.Index, entry => entry)) // Map into dictionary for index, to ensure proper accessing of column values
+            .Sum(a => a[0].Key * a[0].Count * a[1].Count) // For each entry of a key in the first column, add the following to the sum: {item1.Key * item2.Count}
+            .PrintLine(); // Print the result
 
         // P1:
         // File.ReadLines(filename).Select(a => a.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)).SelectMany<string[], (int index, int value)>(a => [(0, int.Parse(a[0])), (1, int.Parse(a[1]))]).GroupBy(a => a.index, a => a.value).Select(a => a.Order()).SelectMany(a => a.Select((b, i) => (i, b))).GroupBy(a => a.i, a => a.b).Sum(a => Math.Abs(a.ElementAt(0) - a.ElementAt(1))).PrintLine();
         // P2:
-        // var output = File.ReadLines(filename).Select(a => a.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)).SelectMany<string[], (int index, int value)>(a => [(0, int.Parse(a[0])), (1, int.Parse(a[1]))]).GroupBy(a => a.index, a => a.value);
-        // var dictionary = output.ElementAt(1).GroupBy(a => a).Select(a => new { Key = a.Key, Count = a.Count() }).ToDictionary(entry => entry.Key, entry => entry.Count);
-        // output.ElementAt(0).Sum(a => a * dictionary.GetValueOrDefault(a)).PrintLine();
+        // File.ReadLines(filename).Select(a => a.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)).SelectMany<string[], (int index, int value)>(a => [(0, int.Parse(a[0])), (1, int.Parse(a[1]))]).GroupBy(a => a.index, a => a.value).Select((a, i) =>a.GroupBy(b => b).Select(b => new { Index = i, Key = b.Key, Count = b.Count() })).SelectMany(a => a).GroupBy(a => a.Key).Where(a => a.Count() == 2 && a.All(b => b.Count > 0)).Select(a => a.ToDictionary(entry => entry.Index, entry => entry)).Sum(a => a[0].Key * a[0].Count * a[1].Count).PrintLine();
     }
 
     public static void Day02(string filename) {
@@ -56,8 +53,7 @@ public static class Days {
             .Select(a => a.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)) // Split into strings
             .Select(a => a.Select(int.Parse)) // Parse each entry
             .Select(a => Enumerable.Range(0, a.Count()).Select(b => a.Where((c,i)=>i!=b)).Append(a)) // Create an array of every possibility with 1 removed.
-            .Count(a =>
-                // Count the number of main rows that are satisfactory
+            .Count(a => // Count the number of main rows that are satisfactory
                 // For each possibility of the row:
                 a.Select(a => a.Zip(a.Skip(1), (a, b) => a-b)) // To list of differences
                 .Where(a => !(a.Any(b => b <= 0) && a.Any(b => b >= 0))) // Removes any that are not all increasing or decreasing
