@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO.MemoryMappedFiles;
 using System.Runtime.CompilerServices;
 
@@ -7,7 +8,9 @@ public static unsafe class OptimizedDays {
     const int zero = '0';
     const int newline = '\n';
 
-    public static (int p1, int p2) Day01(string filename) {
+    public static (int p1, int p2) Day01(string filename, ActivitySource source) {
+        Activity activity = source.StartActivity("setup")!;
+
         var stream = GetStream(filename);
         int value = -1;
         bool column = false; // false is left, true is right
@@ -24,6 +27,9 @@ public static unsafe class OptimizedDays {
         Span<int> right = stackalloc int[length];
 
         int current;
+        activity.Stop();
+
+        activity = source.StartActivity("Read file")!;
 
         while((current = stream.ReadByte()) != -1) {
             current -= zero;
@@ -49,8 +55,16 @@ public static unsafe class OptimizedDays {
 
         right[position] = value;
 
+        activity.Stop();
+
+        activity = source.StartActivity("Sort")!;
+
         left.Sort();
         right.Sort();
+
+        activity.Stop();
+
+        activity = source.StartActivity("conjoin")!;
 
         Dictionary<int, int> conjoin = [];
 
@@ -65,6 +79,8 @@ public static unsafe class OptimizedDays {
         for(int i = 0; i < length; i++) {
             p2 += left[i] * conjoin.GetValueOrDefault(left[i]);
         }
+
+        activity.Stop();
 
         return (p1, p2);
     }

@@ -1,0 +1,6 @@
+dotnet build --configuration Debug && 
+dotnet run & 
+sleep 2 && 
+dotnet trace collect --process-id $(pgrep -n dotnet) --output trace.nettrace --providers "Program.Tracing",Microsoft-DotNETCore-MethodTracing,Microsoft-DotNETCore-Activity && 
+dotnet trace convert --format speedscope trace.nettrace && 
+speedscope trace.speedscope.json

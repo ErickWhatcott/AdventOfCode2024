@@ -1,6 +1,35 @@
-﻿using AdventOfCode2024;
+﻿using System.Diagnostics;
+using AdventOfCode2024;
 using resources.Time;
 
-TestSpeed.Print(() => OptimizedDays.Day01("input.txt"), 10000, 50);
-// TestFunc<(int, int)>.Print(() => OptimizedDays.Day01("input.txt"), 10000, 50);
-OptimizedDays.Day01("input.txt").PrintLine();
+class Program {
+    static void Tracing() {
+        ActivitySource source = new("Program.Tracing");
+
+        ActivitySource.AddActivityListener(new ActivityListener
+        {
+            ShouldListenTo = (activitySource) => activitySource.Name == "Program.Tracing",
+            Sample = (ref ActivityCreationOptions<ActivityContext> options) => ActivitySamplingResult.AllData,
+        });
+        // TestSpeed.Print(() => OptimizedDays.Day01("input.txt"), 100000, 50);
+        // TestFunc<(int, int)>.Print(() => OptimizedDays.Day01("input.txt"), 10000, 50);
+
+        Console.WriteLine("Starting the pause");
+        Thread.Sleep(2000);
+
+        Console.WriteLine("Starting the initial activity");
+
+        Activity activity = source.StartActivity("OptimizedDays")!;
+        Console.WriteLine(activity == null);
+
+        for (int i = 0; i < 10000; i++) {
+            OptimizedDays.Day01("input.txt", source);
+        }
+
+        activity!.Stop();
+    }
+
+    public static void Main() {
+        Days.Day04("input.txt");
+    }
+}

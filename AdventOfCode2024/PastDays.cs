@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using resources;
 
 namespace AdventOfCode2024;
@@ -105,5 +106,65 @@ public static class Days {
         // File.ReadLines(filename).Aggregate((current, next) => current+next).Split("mul").Select(a => a[..(a.IndexOf(')')+1)]).Where(a => a.Length >= 5 && a[0] == '(' && a[^1] == ')' && a[1..^1].All(b => char.IsDigit(b) || b == ',')).Select(a => (short.Parse(a[1..a.IndexOf(',')]), short.Parse(a[(a.IndexOf(',')+1)..^1]))).Sum(a => a.Item1 * a.Item2).PrintLine();
         // P2:
         // File.ReadLines(filename).Aggregate((current, next) => current+next).Split("do()").Select(a => a.Split("don't()").FirstOrDefault(string.Empty)).Select(a => a.Split("mul").Select(b => b[..(b.IndexOf(')')+1)]).Where(b => b.Length >= 5 && b[0] == '(' && b[^1] == ')' && b[1..^1].All(c => char.IsDigit(c) || c == ',')).Select(b => (short.Parse(b[1..b.IndexOf(',')]), short.Parse(b[(b.IndexOf(',')+1)..^1]))).Sum(b => b.Item1 * b.Item2)).Sum().PrintLine();
+    }
+
+    public static void Day04(string filename) {
+        var input = File.ReadAllLines(filename)
+            .Select(a => a.ToArray())
+            .ToArray();
+
+        // P1: 
+        input.SelectMany((a, i) => 
+            a.Select((b, j) => new { Value=b, Index=(i, j) } )
+        ).Where(a => a.Value == 'X')
+        .Sum(v => {
+            const string expected = "XMAS";
+            int count = 0;
+
+            for(int i = -1; i <= 1; i++) {
+                for(int j = -1; j <= 1; j++) {
+                    var current = v.Index;
+                    for(int k = 0; k < 4; k++) {
+                        if(!WithinBounds(input, current.i, out var array) || !WithinBounds(array, current.j, out var c) || c != expected[k]) goto failed;
+                        current = (current.i+j, current.j+i);
+                    }
+
+                    count++;
+
+                    failed:
+                    continue;
+                }
+            }
+
+            return count;
+        })
+        .PrintLine();
+
+        // P2: 
+        input.SelectMany((a, i) => 
+            a.Select((b, j) => new { Value=b, Index=(i, j) } )
+        ).Where(a => a.Value == 'A')
+        .Count(v => {
+            if(WithinBounds(input, v.Index.i-1, out var array) && WithinBounds(array, v.Index.j-1, out var c1) && WithinBounds(array, v.Index.j+1, out var c2) && WithinBounds(input, v.Index.i+1, out var lower_array)) {
+                if(!(c1 == 'M' && lower_array[v.Index.j+1] == 'S') && !(c1 == 'S' && lower_array[v.Index.j+1] == 'M'))
+                    return false;
+                if(!(c2 == 'M' && lower_array[v.Index.j-1] == 'S') && !(c2 == 'S' && lower_array[v.Index.j-1] == 'M'))
+                    return false;
+                return true;
+            }
+
+            return false;
+        })
+        .PrintLine();
+    }
+
+    public static bool WithinBounds<T>(T[] values, int index, [MaybeNullWhen(false)] out T value){
+        if(index >= 0 && index < values.Length) {
+            value = values[index];
+            return true;
+        }
+
+        value = default;
+        return false;
     }
 }
