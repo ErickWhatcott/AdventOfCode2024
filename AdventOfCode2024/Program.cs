@@ -1,5 +1,6 @@
 ﻿using System.Diagnostics;
 using AdventOfCode2024;
+using resources;
 using resources.Time;
 
 class Program {
@@ -23,13 +24,28 @@ class Program {
         Console.WriteLine(activity == null);
 
         for (int i = 0; i < 10000; i++) {
-            OptimizedDays.Day01("input.txt", source);
+            // OptimizedDays.Day01("input.txt", source);
         }
 
         activity!.Stop();
     }
 
     public static void Main() {
-        Days.Day04("input.txt");
+        ConcurrentProfiler profiler = new(ProfilerTime.Ticks);
+        TestSpeed.Print(() => {
+            using var activity = profiler.StartActivity("Day01");
+            OptimizedDays.Day01("input.txt", profiler);
+        }, 5_000, 500);
+        profiler.Dispose();
+
+        // ConcurrentProfiler.Profile((profiler) => {
+        //     using var activity = profiler.StartActivity("Day01");
+        //     OptimizedDays.Day01("input.txt", profiler);
+        // }, 1_000, 100, ProfilerTime.Milliseconds);
+
+        // DeadProfiler.Profile((profiler) => {
+        //     using var activity = profiler.StartActivity("Day01");
+        //     OptimizedDays.Day01("input.txt", profiler);
+        // }, 1_000, 100);
     }
 }

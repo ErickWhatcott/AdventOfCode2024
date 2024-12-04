@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO.MemoryMappedFiles;
 using System.Runtime.CompilerServices;
+using resources;
 
 namespace AdventOfCode2024;
 
@@ -8,8 +9,8 @@ public static unsafe class OptimizedDays {
     const int zero = '0';
     const int newline = '\n';
 
-    public static (int p1, int p2) Day01(string filename, ActivitySource source) {
-        Activity activity = source.StartActivity("setup")!;
+    public static (int p1, int p2) Day01(string filename, IProfiler source) {
+        IActivity activity = source.StartActivity("setup")!;
 
         var stream = GetStream(filename);
         int value = -1;
