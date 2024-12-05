@@ -9,6 +9,22 @@ namespace resources;
 
 public interface IProfiler : IDisposable {
     public IActivity StartActivity(string name);
+    public static void Profile(Action<IProfiler> profiler, int runs, int warmups, ProfilerStatus status) {
+        switch(status){
+            case ProfilerStatus.Debug:
+                ConcurrentProfiler.Profile(profiler, runs, warmups);
+                break;
+            case ProfilerStatus.Time:
+                DeadProfiler.Profile(profiler, runs, warmups);
+                break;
+            case ProfilerStatus.Production:
+                DeadProfiler.Profile(profiler, 1, 0);
+                break;
+            default:
+                throw new EnumNotRecognizedException();
+        }
+    }
+        
 }
 
 public class DeadProfiler : IProfiler
@@ -28,6 +44,7 @@ public class ConcurrentProfiler(ProfilerTime offset) : IProfiler {
     private Tree<string, List<long>> Activities { get; } = [];
     public ProfilerTime TimeOffset { get; set; } = offset;
     private static Thread CurrentThread => Thread.CurrentThread;
+    private static string ThreadName => CurrentThread.Name??CurrentThread.GetHashCode().ToString();
 
     public ConcurrentProfiler() : this(ProfilerTime.Ticks) {}
 
@@ -69,8 +86,10 @@ public class ConcurrentProfiler(ProfilerTime offset) : IProfiler {
             action(warmup_profiler);
         warmup_profiler.Dispose();
         ConcurrentProfiler profiler = new(offset);
-        for(int i = 0; i < runs; i++)
-            action(profiler);
+        using (var activity = profiler.StartActivity("Profiling")){
+            for(int i = 0; i < runs; i++)
+                action(profiler);
+        }
         profiler.Dispose(print);
     }
 
@@ -88,33 +107,33 @@ public class ConcurrentProfiler(ProfilerTime offset) : IProfiler {
                 yield return map(set[i]);
         }
 
-        long timeend = Stopwatch.GetTimestamp() - activity.StartTick;
+        if(activity.SW is null) throw new Exception("An activity cannot be stopped before it is started.");
 
-        Contract.Assert(activity.Profiler == this);
+        activity.SW.Stop();
+
         var set = Values[CurrentThread];
         if(!set.Contains(activity)) throw new ArgumentException("The activity was not found in the dictionary. Was it stopped in a different thread?");
 
-        StringBuilder sb = new();
-        int i;
-        sb.Append(CurrentThread.Name??CurrentThread.GetHashCode().ToString()).Append("://");
-        for(i = 0; set[i] != activity; i++) {
-            sb.Append(set[i].Name).Append('/');
-        }
-        sb.Append(activity.Name);
+        int i = set.IndexOf(activity);
         set.RemoveAt(i);
 
-        Activities.GetOrAddNode(sb.ToString(), [], GetSection(set, 0, i, a=>a.Name)).Value.Add(timeend);
+        var node = Activities.GetOrAddNodeFillParents(activity.Name, a=>[], GetSection(set, 0, i, a=>a.Name).Prepend(ThreadName));
+        node.Value.Add(activity.SW.Elapsed.Ticks);
     }
 
     public void PrintFinished() {
         foreach(var node in Activities) {
+            if(node.Parent is null) continue;
+            var ancestors = node.AncestorsTopDown;
             var value = node.Value.Select(a => a/((double)TimeOffset));
-            Console.WriteLine($"{node.Index}: avg({value.Average()}) min({value.Min()}) max({value.Max()}) std({value.StandardDeviation()})");
+            Console.WriteLine($"{ancestors.ElementAt(0)}://{string.Join("", node.AncestorsTopDown.Skip(1).Select(a=>a.ToString()+'/'))}{node.Index}: avg({value.Average()}) min({value.Min()}) max({value.Max()}) std({value.StandardDeviation()})");
         }
     }
 
     public void Dispose(bool print) {
-        Values.ForEach(a => a.Value.ForEach(b => b.Dispose()));
+        foreach(var items in Values.Values)
+            for (int i = 0; i < items.Count; i++)
+                items[i].Stop();
         if(print) PrintFinished();
         GC.SuppressFinalize(this);
     }
@@ -136,14 +155,15 @@ public class DeadActivity : IActivity {
 }
 
 public class ConcurrentActivity(ConcurrentProfiler profiler, string name) : IActivity{
-    public long StartTick { get; private set; } = -1;
+    public Stopwatch? SW { get; private set; }
     public ConcurrentProfiler Profiler { get; } = profiler;
     public string Name { get; } = name;
 
     public IActivity Start() {
-        if(StartTick != -1) throw new Exception("Once started, an activity cannot be started again.");
+        if(SW is not null) throw new Exception("Once started, an activity cannot be started again.");
         Profiler.StartActivity(this);
-        StartTick = Stopwatch.GetTimestamp();
+        SW = new();
+        SW.Start();
         return this;
     }
 
@@ -174,3 +194,11 @@ public enum ProfilerTime : long {
     Minutes = 600_000_000,
     Hours = 36_000_000_000
 }
+
+public enum ProfilerStatus {
+    Debug,
+    Time,
+    Production,
+}
+
+public class EnumNotRecognizedException : Exception {}

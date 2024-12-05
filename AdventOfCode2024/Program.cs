@@ -31,21 +31,9 @@ class Program {
     }
 
     public static void Main() {
-        ConcurrentProfiler profiler = new(ProfilerTime.Ticks);
-        TestSpeed.Print(() => {
-            using var activity = profiler.StartActivity("Day01");
+        ConcurrentProfiler.Profile((profiler) => {
+            var activity = profiler.StartActivity("Day01");
             OptimizedDays.Day01("input.txt", profiler);
-        }, 5_000, 500);
-        profiler.Dispose();
-
-        // ConcurrentProfiler.Profile((profiler) => {
-        //     using var activity = profiler.StartActivity("Day01");
-        //     OptimizedDays.Day01("input.txt", profiler);
-        // }, 1_000, 100, ProfilerTime.Milliseconds);
-
-        // DeadProfiler.Profile((profiler) => {
-        //     using var activity = profiler.StartActivity("Day01");
-        //     OptimizedDays.Day01("input.txt", profiler);
-        // }, 1_000, 100);
+        }, 100, 10, ProfilerTime.Milliseconds);
     }
 }

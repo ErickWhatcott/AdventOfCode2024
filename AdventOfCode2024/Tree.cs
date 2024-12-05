@@ -46,17 +46,29 @@ public class Tree<TKey, TValue> : IEnumerable<TreeNode<TKey, TValue>> where TKey
     public TreeNode<TKey, TValue> GetOrAddNode(TKey key, TValue default_value, IEnumerable<TKey>? parents) {
         var enumerator = parents?.GetEnumerator();
         if(!(enumerator?.MoveNext() ?? false)){
-            Branches.TryAdd(key, new(key, default_value, null));
-            return Branches[key];
+            return Branches.GetOrAdd(key, new TreeNode<TKey, TValue>(key, default_value, null));
         }
 
-        TreeNode<TKey, TValue> current = Branches.GetOrAdd(enumerator.Current, new TreeNode<TKey, TValue>(key, default_value, null));
+        TreeNode<TKey, TValue> current = Branches.GetOrAdd(enumerator.Current, new TreeNode<TKey, TValue>(enumerator.Current, default_value, null));
         while(enumerator.MoveNext()) {
             current = current._children.GetOrAdd(enumerator.Current, new TreeNode<TKey, TValue>(enumerator.Current, default_value, current));
         }
 
-        current._children.TryAdd(key, new(key, default_value, current));
-        return current.Children[key];
+        return current._children.GetOrAdd(key, new TreeNode<TKey, TValue>(key, default_value, current));
+    }
+
+    public TreeNode<TKey, TValue> GetOrAddNodeFillParents(TKey key, Func<TKey, TValue> default_value, IEnumerable<TKey>? parents) {
+        var enumerator = parents?.GetEnumerator();
+        if(!(enumerator?.MoveNext() ?? false)){
+            return Branches.GetOrAdd(key, new TreeNode<TKey, TValue>(key, default_value(key), null));
+        }
+
+        TreeNode<TKey, TValue> current = Branches.GetOrAdd(enumerator.Current, new TreeNode<TKey, TValue>(enumerator.Current, default_value(enumerator.Current), null));
+        while(enumerator.MoveNext()) {
+            current = current._children.GetOrAdd(enumerator.Current, new TreeNode<TKey, TValue>(enumerator.Current, default_value(enumerator.Current), current));
+        }
+
+        return current._children.GetOrAdd(key, new TreeNode<TKey, TValue>(key, default_value(key), current));
     }
 
     public IEnumerator<TreeNode<TKey, TValue>> GetEnumerator() =>
@@ -74,6 +86,27 @@ public class TreeNode<TKey, TValue>(TKey i, TValue v, TreeNode<TKey, TValue>? p)
     public TreeNode<TKey, TValue>? Parent { get; } = p;
 
     public IReadOnlyDictionary<TKey, TreeNode<TKey, TValue>> Children => _children;
+    public IEnumerable<TreeNode<TKey, TValue>> Ancestors {
+        get{
+            var current = Parent;
+            while(current is not null) {
+                yield return current;
+                current = current.Parent;
+            }
+        }
+    }
+
+    public IEnumerable<TreeNode<TKey, TValue>> AncestorsTopDown {
+        get{
+            Stack<TreeNode<TKey, TValue>> stack = [];
+            var current = Parent;
+            while(current is not null) {
+                stack.Push(current);
+                current = current.Parent;
+            }
+            return stack;
+        }
+    }
 
     public IEnumerable<TreeNode<TKey, TValue>> GetChildren() =>
         Children.Values;
@@ -83,4 +116,7 @@ public class TreeNode<TKey, TValue>(TKey i, TValue v, TreeNode<TKey, TValue>? p)
         _children.TryAdd(key, node);
         return node;
     }
+
+    public override string ToString() => 
+        Index.ToString() ?? throw new Exception();
 }
