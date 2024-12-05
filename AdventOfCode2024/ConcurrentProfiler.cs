@@ -131,9 +131,13 @@ public class ConcurrentProfiler(ProfilerTime offset) : IProfiler {
     }
 
     public void Dispose(bool print) {
-        foreach(var items in Values.Values)
-            for (int i = 0; i < items.Count; i++)
+        foreach(var items in Values.Values){
+            items.Count.PrintLine();
+            for (int i = items.Count-1; i >= 0; i--){
+                i.PrintLine();
                 items[i].Stop();
+            }
+        }
         if(print) PrintFinished();
         GC.SuppressFinalize(this);
     }
