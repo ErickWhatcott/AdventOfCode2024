@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using System.IO.MemoryMappedFiles;
 using System.Runtime.CompilerServices;
+using System.Text;
 using resources;
 
 namespace AdventOfCode2024;
@@ -8,60 +9,63 @@ namespace AdventOfCode2024;
 public static unsafe class OptimizedDays {
     const int zero = '0';
     const int newline = '\n';
+    const byte space = (byte)' ';
 
+    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public static (int p1, int p2) Day01(string filename, IProfiler source) {
+        const int length = 1000;
         IActivity activity = source.StartActivity("start stream");
 
         var stream = GetStream(filename);
-        int value = -1;
-        bool column = false; // false is left, true is right
         int position = 0;
-
-        int length = 1;
+        int count = 0;
 
         activity.Stop();
         activity = source.StartActivity("count lines");
 
-        while(stream.Position < stream.Length) {
-            length += Convert.ToInt32(stream.ReadByte() == newline);
-        }
-        stream.Position = 0;
-
-        activity.Stop();
-
-        activity = source.StartActivity("create spans")!;
-
         Span<int> left = stackalloc int[length];
         Span<int> right = stackalloc int[length];
+        Span<int> lengths = stackalloc int[length];
+        int max = 0;
 
-        int current;
+        long current_position = stream.Position;
+        long file_length = stream.Length;
+
+        // while(stream.Position < stream.Length) {
+        while(current_position++ < file_length) {
+            if(stream.ReadByte() == newline) {
+                lengths[position++] = count;
+                max = Math.Max(max, count);
+                count = 0;
+            }else {
+                count++;
+            }
+        }
+
+        lengths[^1] = count;
+        stream.Position = 0;
+        position = 0;
+
         activity.Stop();
 
         activity = source.StartActivity("Read file")!;
 
-        while((current = stream.ReadByte()) != -1) {
-            current -= zero;
+        byte[] buffer = new byte[max];
+        int read_bytes = 0;
 
-            if(current >= 0 && current <= 9) {
-                if(value == -1) {
-                    value = current;
-                } else {
-                    value *= 10;
-                    value += current;
-                }
-            }else if(value != -1) {
-                if(column) {
-                    right[position++] = value;
-                } else {
-                    left[position] = value;
-                }
+        for(int current = 0; current < length; current++) {
+            Span<byte> span = buffer.AsSpan(0, lengths[current]);
+            stream.ReadExactly(buffer, 0, lengths[current]);
+            stream.Position++;
+            read_bytes += lengths[current];
 
-                column = !column;
-                value = -1;
-            }
+            // Console.WriteLine(Encoding.ASCII.GetString(span));
+            // Console.WriteLine(Encoding.ASCII.GetString(span[..span.IndexOf(space)]));
+            // Console.WriteLine(Encoding.ASCII.GetString(span[(span.LastIndexOf(space)+1)..]));
+
+            left[current] = int.Parse(span[..span.IndexOf(space)]);
+            right[current] = int.Parse(span[(span.LastIndexOf(space)+1)..]);
         }
-
-        right[position] = value;
 
         activity.Stop();
 
@@ -101,4 +105,11 @@ public static unsafe class OptimizedDays {
 
     private static MemoryMappedViewAccessor GetAccessor(string filename) =>
         MemoryMappedFile.CreateFromFile(filename, FileMode.Open).CreateViewAccessor();
+
+    public static void RunThroughStream(string filename) {
+        var stream = GetStream(filename);
+        while(stream.Position < stream.Length) {
+            stream.ReadByte();
+        }
+    }
 }
