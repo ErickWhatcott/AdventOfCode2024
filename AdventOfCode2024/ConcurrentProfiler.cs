@@ -41,7 +41,7 @@ public class DeadProfiler : IProfiler
 
 public class ConcurrentProfiler(ProfilerTime offset) : IProfiler {
     private ConcurrentDictionary<Thread, HashList<ConcurrentActivity>> Values { get; } = [];
-    private Tree<string, List<long>> Activities { get; } = [];
+    private ProfilerTree<string, List<long>> Activities { get; } = [];
     public ProfilerTime TimeOffset { get; set; } = offset;
     private static Thread CurrentThread => Thread.CurrentThread;
     private static string ThreadName => CurrentThread.Name??CurrentThread.GetHashCode().ToString();
@@ -86,9 +86,11 @@ public class ConcurrentProfiler(ProfilerTime offset) : IProfiler {
             action(warmup_profiler);
         warmup_profiler.Dispose();
         ConcurrentProfiler profiler = new(offset);
-        using (var activity = profiler.StartActivity("Profiling")){
-            for(int i = 0; i < runs; i++)
+        using (var profiling = profiler.StartActivity("Profiling")){
+            for(int i = 0; i < runs; i++){
+                using var iteration = profiler.StartActivity("Iteration");
                 action(profiler);
+            }
         }
         profiler.Dispose(print);
     }
@@ -138,6 +140,7 @@ public class ConcurrentProfiler(ProfilerTime offset) : IProfiler {
                 items[i].Stop();
             }
         }
+
         if(print) PrintFinished();
         GC.SuppressFinalize(this);
     }

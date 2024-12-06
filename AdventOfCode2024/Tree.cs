@@ -3,8 +3,8 @@ using System.Collections.Concurrent;
 
 namespace resources;
 
-public class Tree<TKey, TValue> : IEnumerable<TreeNode<TKey, TValue>> where TKey: notnull {
-    private ConcurrentDictionary<TKey, TreeNode<TKey, TValue>> Branches { get; } = [];
+public class ProfilerTree<TKey, TValue> : IEnumerable<TreeNode<TKey, TValue>> where TKey: notnull {
+    private Dictionary<TKey, TreeNode<TKey, TValue>> Branches { get; } = [];
 
     public IEnumerable<TreeNode<TKey, TValue>> DepthFirst {
         get {
@@ -79,7 +79,7 @@ public class Tree<TKey, TValue> : IEnumerable<TreeNode<TKey, TValue>> where TKey
 }
 
 public class TreeNode<TKey, TValue>(TKey i, TValue v, TreeNode<TKey, TValue>? p) where TKey : notnull {
-    internal readonly ConcurrentDictionary<TKey, TreeNode<TKey, TValue>> _children = [];
+    internal readonly Dictionary<TKey, TreeNode<TKey, TValue>> _children = [];
 
     public TKey Index { get; } = i;
     public TValue Value { get; } = v;
@@ -109,7 +109,7 @@ public class TreeNode<TKey, TValue>(TKey i, TValue v, TreeNode<TKey, TValue>? p)
     }
 
     public IEnumerable<TreeNode<TKey, TValue>> GetChildren() =>
-        Children.Values;
+        Children.Values.Reverse();
 
     public TreeNode<TKey, TValue> AddChild(TKey key, TValue value) {
         TreeNode<TKey, TValue> node = new(key, value, this);

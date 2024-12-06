@@ -10,7 +10,7 @@ public static unsafe class OptimizedDays {
     const int newline = '\n';
 
     public static (int p1, int p2) Day01(string filename, IProfiler source) {
-        IActivity activity = source.StartActivity("setup")!;
+        IActivity activity = source.StartActivity("start stream");
 
         var stream = GetStream(filename);
         int value = -1;
@@ -19,10 +19,17 @@ public static unsafe class OptimizedDays {
 
         int length = 1;
 
+        activity.Stop();
+        activity = source.StartActivity("count lines");
+
         while(stream.Position < stream.Length) {
             length += Convert.ToInt32(stream.ReadByte() == newline);
         }
         stream.Position = 0;
+
+        activity.Stop();
+
+        activity = source.StartActivity("create spans")!;
 
         Span<int> left = stackalloc int[length];
         Span<int> right = stackalloc int[length];
