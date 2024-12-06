@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using resources;
+using resources.Directions;
 
 namespace AdventOfCode2024;
 
@@ -156,6 +157,105 @@ public static class Days {
             return false;
         })
         .PrintLine();
+    }
+
+    public static void Day05(string filename) {
+        char[] splitchars = ['|', ','];
+        // P1:
+        var input = File.ReadLines(filename)
+            .Select(a => a.Split(splitchars, StringSplitOptions.RemoveEmptyEntries).Select(b => int.Parse(b)))
+            .GroupBy(a => a.Count())
+            .Where(a => a.Key > 0)
+            .OrderBy(a => a.Key);
+        
+        var rules = input.ElementAt(0)
+            .GroupBy(a => a.ElementAt(0), a => a.ElementAt(1))
+            .ToDictionary(
+                entry => entry.Key, 
+                entry => entry.ToHashSet()
+            );
+        
+        input.Skip(1)
+            .SelectMany(a => a)
+            .Sum(page => {
+                var array = page.ToArray();
+                HashSet<int> avoid = [];
+                foreach(var value in page) {
+                    if(rules.TryGetValue(value, out var rule) && rule.Any(avoid.Contains)) return 0;
+                    avoid.Add(value);
+                }
+
+                return array[array.Length/2];
+            }).PrintLine();
+
+        // P2:
+        input.Skip(1)
+            .SelectMany(a => a)
+            .Where(page => {
+                HashSet<int> avoid = [];
+                foreach(var value in page) {
+                    if(rules.TryGetValue(value, out var rule) && rule.Any(avoid.Contains)) return true;
+                    avoid.Add(value);
+                }
+
+                return false;
+            }).Sum(page => {
+                List<int> result = new(page.Count());
+                foreach(var value in page) {
+                    if(rules.TryGetValue(value, out var rule)) {
+                        int index = result.FindIndex(rule.Contains);
+                        if(index == -1)
+                            result.Add(value);
+                        else
+                            result.Insert(index, value);
+                    }else {
+                        result.Add(value);
+                    }
+                }
+
+                return result[result.Count/2];
+            }).PrintLine();
+    }
+
+    public static void Day06(string filename) {
+        var input = File.ReadLines(filename);
+        var positions = input
+            .SelectMany((a, i) => a.Select((b, j) => new { Value=b, Row=i, Column=j}))
+            .Where(a => a.Value == '#' || a.Value == '^')
+            .GroupBy(a => a.Value);
+
+        var guard = positions.First(a => a.Key == '^').Select(a => (a.Row, a.Column)).First();
+
+        // N: 0
+        // E: 1
+        // S: 2
+        // W: 3
+        var guard_direction = 0;
+
+        var obstacles = positions.First(a => a.Key == '#').Select(a => (a.Row, a.Column)).ToHashSet();
+
+        HashSet<(int, int)> visited = [];
+
+        (int Rows, int Columns) bounds = (input.Count(), input.First().Length);
+
+        while(guard.Row < bounds.Rows && guard.Row >= 0 && guard.Column < bounds.Columns && guard.Column >= 0) {
+            visited.Add(guard);
+            (int Row, int Column) next = guard_direction % 2 == 0 ?
+                ((guard.Row+(guard_direction == 0 ? -1 : 1), guard.Column)) :
+                ((guard.Row, guard.Column+(guard_direction == 3 ? -1 : 1)));
+            
+            if(obstacles.Contains((next.Row, next.Column))) {
+                guard_direction = (guard_direction+1)%4;
+                continue;
+            }
+
+            guard = next;
+        }
+
+        Console.WriteLine(visited.Count);
+
+        // TODO:
+        // P2:
     }
 
     public static bool WithinBounds<T>(T[] values, int index, [MaybeNullWhen(false)] out T value){
