@@ -11,7 +11,6 @@ public static unsafe class OptimizedDays {
     const int newline = '\n';
     const byte space = (byte)' ';
 
-    [MethodImpl(MethodImplOptions.AggressiveOptimization)]
     public static (int p1, int p2) Day01(string filename, IProfiler source) {
         const int length = 1000;
         IActivity activity = source.StartActivity("start stream");
@@ -21,61 +20,59 @@ public static unsafe class OptimizedDays {
         int count = 0;
 
         activity.Stop();
-        activity = source.StartActivity("count lines");
+        activity = source.StartActivity("make spans");
 
         Span<int> left = stackalloc int[length];
         Span<int> right = stackalloc int[length];
         Span<int> lengths = stackalloc int[length];
+
+        activity.Stop();
+        activity = source.StartActivity("count lines");
+
         int max = 0;
 
-        long current_position = stream.Position;
-        long file_length = stream.Length;
-
-        // while(stream.Position < stream.Length) {
-        while(current_position++ < file_length) {
+        while(stream.Position < stream.Length) {
+            count++;
             if(stream.ReadByte() == newline) {
                 lengths[position++] = count;
-                max = Math.Max(max, count);
+                if(count > max) max = count;
                 count = 0;
-            }else {
-                count++;
             }
         }
+
+        activity.Stop();
+        activity = source.StartActivity("rebase");
 
         lengths[^1] = count;
         stream.Position = 0;
         position = 0;
 
         activity.Stop();
+        activity = source.StartActivity("create buffers");
 
+        Span<byte> buffer = stackalloc byte[max];
+
+        activity.Stop();
         activity = source.StartActivity("Read file")!;
 
-        byte[] buffer = new byte[max];
         int read_bytes = 0;
 
         for(int current = 0; current < length; current++) {
-            Span<byte> span = buffer.AsSpan(0, lengths[current]);
-            stream.ReadExactly(buffer, 0, lengths[current]);
-            stream.Position++;
+            Span<byte> span = buffer[..lengths[current]];
+            stream.ReadExactly(span);
             read_bytes += lengths[current];
 
-            // Console.WriteLine(Encoding.ASCII.GetString(span));
-            // Console.WriteLine(Encoding.ASCII.GetString(span[..span.IndexOf(space)]));
-            // Console.WriteLine(Encoding.ASCII.GetString(span[(span.LastIndexOf(space)+1)..]));
-
             left[current] = int.Parse(span[..span.IndexOf(space)]);
-            right[current] = int.Parse(span[(span.LastIndexOf(space)+1)..]);
+            right[current] = int.Parse(span[(span.LastIndexOf(space)+1)..^1]);
         }
 
         activity.Stop();
-
         activity = source.StartActivity("Sort")!;
 
         left.Sort();
         right.Sort();
 
         activity.Stop();
-
         activity = source.StartActivity("conjoin")!;
 
         Dictionary<int, int> conjoin = [];
