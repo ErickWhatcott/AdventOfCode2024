@@ -5,6 +5,7 @@ using resources.Time;
 
 class Program {
     public static void Main() {
+        OptimizedDays.Day01("input.txt", new DeadProfiler()).PrintLine();
         ConcurrentProfiler.Profile((profiler) => {
             using var activity = profiler.StartActivity("Day01");
             OptimizedDays.Day01("input.txt", profiler);

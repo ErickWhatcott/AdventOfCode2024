@@ -16,54 +16,43 @@ public static unsafe class OptimizedDays {
         IActivity activity = source.StartActivity("start stream");
 
         var stream = GetStream(filename);
-        int position = 0;
-        int count = 0;
 
         activity.Stop();
         activity = source.StartActivity("make spans");
 
         Span<int> left = stackalloc int[length];
         Span<int> right = stackalloc int[length];
-        Span<int> lengths = stackalloc int[length];
+        // Span<int> lengths = stackalloc int[length];
 
         activity.Stop();
         activity = source.StartActivity("count lines");
 
-        int max = 0;
+        // int max = 0;
 
-        while(stream.Position < stream.Length) {
-            count++;
-            if(stream.ReadByte() == newline) {
-                lengths[position++] = count;
-                if(count > max) max = count;
-                count = 0;
-            }
-        }
+        while(stream.ReadByte() != newline) {}
 
-        activity.Stop();
-        activity = source.StartActivity("rebase");
 
-        lengths[^1] = count;
-        stream.Position = 0;
-        position = 0;
+        int count = (int)stream.Position;
+
+        Span<byte> buffer = stackalloc byte[count];
+        stream.ReadExactly(buffer);
+
+        int indexof = buffer.IndexOf(space);
+        int lastindexof = buffer.LastIndexOf(space)+1;
 
         activity.Stop();
-        activity = source.StartActivity("create buffers");
 
-        Span<byte> buffer = stackalloc byte[max];
-
-        activity.Stop();
         activity = source.StartActivity("Read file")!;
+        stream.Position = 0;
+        int current = 0;
 
-        int read_bytes = 0;
+        long adjusted_length = stream.Length+1-count;
 
-        for(int current = 0; current < length; current++) {
-            Span<byte> span = buffer[..lengths[current]];
-            stream.ReadExactly(span);
-            read_bytes += lengths[current];
+        while(current < length && stream.Position <= adjusted_length) {
+            stream.ReadAtLeast(buffer, count-1);
 
-            left[current] = int.Parse(span[..span.IndexOf(space)]);
-            right[current] = int.Parse(span[(span.LastIndexOf(space)+1)..^1]);
+            left[current] = int.Parse(buffer[..indexof]);
+            right[current++] = int.Parse(buffer[lastindexof..^1]);
         }
 
         activity.Stop();
