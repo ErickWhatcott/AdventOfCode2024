@@ -5,6 +5,6 @@ using resources.Time;
 
 class Program {
     public static void Main() {
-        Days.Day05("input.txt");
+        Days.Day06("input.txt");
     }
 }

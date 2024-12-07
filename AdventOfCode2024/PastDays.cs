@@ -1,5 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using resources;
+using resources.Combinatorics;
 using resources.Directions;
 
 namespace AdventOfCode2024;
@@ -225,6 +227,7 @@ public static class Days {
             .GroupBy(a => a.Value);
 
         var guard = positions.First(a => a.Key == '^').Select(a => (a.Row, a.Column)).First();
+        var guard_start = guard;
 
         // N: 0
         // E: 1
@@ -256,9 +259,99 @@ public static class Days {
 
         // TODO:
         // P2:
+
+        static bool HasVector(HashSet<(int Row, int Column, int Direction)> visited_obstacles, (int, int) guard_position, int guard_direction) {
+            int scaled_direction = (guard_direction+1)%4;
+            if(guard_direction % 2 == 0) {
+                if(guard_direction == 0) {
+                    // N
+                    return visited_obstacles.Any(a => a.Direction == scaled_direction && a.Row == guard_position.Item1+1 && a.Column > guard_position.Item2);
+                }else {
+                    // S
+                    return visited_obstacles.Any(a => a.Direction == scaled_direction && a.Row == guard_position.Item1-1 && a.Column < guard_position.Item2);
+                }
+            }else {
+                if(guard_direction == 1) {
+                    // E
+                    return visited_obstacles.Any(a => a.Direction == scaled_direction && a.Row > guard_position.Item1 && a.Column == guard_position.Item2-1);
+                }else {
+                    // W
+                    return visited_obstacles.Any(a => a.Direction == scaled_direction && a.Row < guard_position.Item1 && a.Column == guard_position.Item2+1);
+                }
+            }
+        }
+
+        HashSet<(int Row, int Column, int Direction)> visited_obstacles = [];
+        HashSet<(int, int)> valid_obstacles = [];
+
+        guard = guard_start;
+        guard_direction = 0;
+
+        while(guard.Row < bounds.Rows && guard.Row >= 0 && guard.Column < bounds.Columns && guard.Column >= 0) {
+            (int Row, int Column) next = guard_direction % 2 == 0 ?
+                ((guard.Row+(guard_direction == 0 ? -1 : 1), guard.Column)) :
+                ((guard.Row, guard.Column+(guard_direction == 3 ? -1 : 1)));
+            
+            if(obstacles.Contains((next.Row, next.Column))) {
+                visited_obstacles.Add((next.Row, next.Column, guard_direction));
+                guard_direction = (guard_direction+1)%4;
+                continue;
+            }
+
+            if(HasVector(visited_obstacles, guard, guard_direction)) {
+                valid_obstacles.Add(next);
+            }
+
+            guard = next;
+        }
+
+        valid_obstacles.Count.PrintLine();
     }
 
-    public static bool WithinBounds<T>(T[] values, int index, [MaybeNullWhen(false)] out T value){
+    public static void Day07(string filename) {
+        static void Helper(string filename, List<Func<long, long, long>> operators) {
+            var data = File.ReadLines(filename)
+                .Select(a => a.Split([' ', ':'], StringSplitOptions.RemoveEmptyEntries).Select(long.Parse))
+                .Select(a => (a.ElementAt(0), a.Skip(1).ToArray()));
+
+            data.Sum(a => {
+                var (key, values) = a;
+                var permutations = Permutations.Generate(operators, values.Length);
+                foreach(var permute in permutations) {
+                    var permute_value = values
+                        .Select((value, i) => (value, i))
+                        .Aggregate(0L, (total, curr) => permute[curr.i](total, curr.value));
+                    if(permute_value == key){
+                        return key;
+                    }
+                }
+
+                return 0;
+            }).PrintLine();
+        }
+
+        // P1:
+        List<Func<long, long, long>> operators = [Multiply, Add];
+        Helper(filename, operators);
+        
+        // P2:
+        operators = [Multiply, Add, Concatonate];
+        Helper(filename, operators);
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static long Concatonate(long x1, long x2) =>
+        checked((long)(x1 * Math.Pow(10, Math.Floor(Math.Log10(x2)+1))) + x2);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static long Multiply(long x1, long x2) =>
+        checked(x1*x2);
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private static long Add(long x1, long x2) =>
+        checked(x1+x2);
+
+    private static bool WithinBounds<T>(T[] values, int index, [MaybeNullWhen(false)] out T value){
         if(index >= 0 && index < values.Length) {
             value = values[index];
             return true;
